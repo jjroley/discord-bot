@@ -23,7 +23,7 @@ export default class DiscordClient extends Client {
   protected async loadSlashCommands() {
     const commandsPath = path.join(__dirname, '..', 'commands');
     const commandFiles = fs.readdirSync(commandsPath).filter(file => {
-      return file.endsWith('.ts') && !file.startsWith('$')
+      return !file.endsWith('.map') && !file.startsWith('$')
     });
     
     for (const file of commandFiles) {
@@ -62,7 +62,7 @@ export default class DiscordClient extends Client {
 
     const commandsPath = path.join(__dirname, '..', 'commands');
     const commandFiles = fs.readdirSync(commandsPath).filter(file => {
-      return file.endsWith('.ts') && file.startsWith('$')
+      return !file.endsWith('.map') && file.startsWith('$')
     });
 
     for(const filename of commandFiles) {

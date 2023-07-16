@@ -1,21 +1,23 @@
 import path from "node:path"
 import fs from "node:fs"
-import { Client, Collection, ClientOptions, Events, REST, Routes, ApplicationCommandDataResolvable, CommandInteraction, Message } from "discord.js"
+import { Client, Collection, ClientOptions, Events, REST, Routes, ApplicationCommandDataResolvable, CommandInteraction, Message, GatewayIntentBits } from "discord.js"
 import { token, clientId, guildId } from '../config.json'
 import type { CustomCommand } from "../types"
-
+import openai from "./OpenAI"
 
 export default class DiscordClient extends Client {
   commands: Collection<any, any>
   commandsArr: ApplicationCommandDataResolvable[]
-  $commands: { 
+  customCommands: { 
     [key:string]: CustomCommand 
   }
+
   constructor(options:ClientOptions) {
     super(options)
+
     this.commands = new Collection()
     this.commandsArr = []
-    this.$commands = {}
+    this.customCommands = {}
 
     this.init()
   }
@@ -57,8 +59,8 @@ export default class DiscordClient extends Client {
    
   }
 
-  protected async load$Commands() {
-    console.log(`Started refreshing ${Object.keys(this.$commands).length} custom ($) commands.`);
+  protected async loadCustomCommands() {
+    console.log(`Started refreshing ${Object.keys(this.customCommands).length} custom ($) commands.`);
 
     const commandsPath = path.join(__dirname, '..', 'commands');
     const commandFiles = fs.readdirSync(commandsPath).filter(file => {
@@ -68,22 +70,22 @@ export default class DiscordClient extends Client {
     for(const filename of commandFiles) {
       const filePath = path.join(commandsPath, filename)
       const command = (await import(filePath)).default;
-      this.$commands[command.name] = command
+      this.customCommands[command.name] = command
     }
 
-    console.log(`Succesfully created ${Object.keys(this.$commands).length} custom ($) commands.`)
+    console.log(`Succesfully created ${Object.keys(this.customCommands).length} custom ($) commands.`)
   }
 
   protected async init() {
     await Promise.all([
       this.loadSlashCommands(),
-      this.load$Commands(),
+      this.loadCustomCommands(),
       this.loadInteractions()
     ])
 
     this.on(Events.MessageCreate, async message => {
       this.handleMention(message)
-      this.handle$Command(message)
+      this.handleCustomCommand(message)
     })
   }
 
@@ -117,14 +119,18 @@ export default class DiscordClient extends Client {
     if(!this.user) return
 
     if(message.mentions.has(this.user.id)) {
-      
+      const response = await openai.getChatResponse(message)
+
+      if(!response) return
+
+      message.reply(response)
     }
   }
 
-  protected async handle$Command(message:Message) {
+  protected async handleCustomCommand(message:Message) {
     const commandName = message.content.match(/^\$[\w\-]+/)?.[0]
     if(!commandName) return
-    const command = this.$commands[commandName]
+    const command = this.customCommands[commandName]
     if(!command) return
     command.execute(message)
   }

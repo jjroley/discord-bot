@@ -32,7 +32,7 @@ export default {
         { name: "Rapid Rating", value: `${data.perfs.rapid.rating}` },
         { name: "Bullet Rating", value: `${data.perfs.bullet.rating}` },
         { name: "Total Games Played", value: `${data.count.all}` },
-        { name: "Wins", value: `${data.count.win} (${ Math.floor(data.count.win / data.count.all * 100) }%)` },
+        { name: "Wins", value: `${data.count.win} (${ Math.floor(data.count.win / (data.count.all || 1) * 100) }%)` },
         { name: "Member Since", value: `${date.toLocaleString('default', { month: 'long'})} ${date.getFullYear()}` }
       )
 

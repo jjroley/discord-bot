@@ -47,7 +47,7 @@ export default class DiscordClient extends Client {
       console.log(`Started refreshing ${this.commandsArr.length} application (/) commands.`);
 
       const data = await rest.put(
-        Routes.applicationGuildCommands(clientId, guildId), 
+        Routes.applicationCommands(clientId), 
         { body: this.commandsArr }
       ) as Array<any>
   

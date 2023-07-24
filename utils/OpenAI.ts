@@ -32,7 +32,7 @@ class OpenAI {
         { role: 'system', content: systemPrompt },
         ...messages
       ],
-      max_tokens: 250
+      max_tokens: 600
     })
 
     const response = chatCompletion.data.choices[0].message

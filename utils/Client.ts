@@ -31,7 +31,6 @@ export default class DiscordClient extends Client {
     for (const file of commandFiles) {
       const filePath = path.join(commandsPath, file);
       const command = (await import(filePath)).default;
-      console.log(command)
       // Set a new item in the Collection with the key as the command name and the value as the exported module
       if ('data' in command && 'execute' in command) {
         this.commands.set(command.data.name, command)
@@ -44,8 +43,6 @@ export default class DiscordClient extends Client {
     const rest = new REST().setToken(token)
     
     try {
-      console.log(`Started refreshing ${this.commandsArr.length} application (/) commands.`);
-
       const data = await rest.put(
         Routes.applicationCommands(clientId), 
         { body: this.commandsArr }
@@ -60,8 +57,7 @@ export default class DiscordClient extends Client {
   }
 
   protected async loadCustomCommands() {
-    console.log(`Started refreshing ${Object.keys(this.customCommands).length} custom ($) commands.`);
-
+    
     const commandsPath = path.join(__dirname, '..', 'commands');
     const commandFiles = fs.readdirSync(commandsPath).filter(file => {
       return !file.endsWith('.map') && file.startsWith('$')

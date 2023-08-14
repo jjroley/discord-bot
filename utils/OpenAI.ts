@@ -5,10 +5,15 @@ import { Message } from "discord.js";
 import { getReplyChain } from "./helpers";
 
 import client from "..";
+import { ServerConfig } from "../schema";
+import mongoClient from "./MongoClient";
+import { botUsername } from "../config.json";
 
 class OpenAI {
   private configuration: Configuration;
-  private api: OpenAIApi
+
+  api: OpenAIApi
+
   constructor() {
     this.configuration = new Configuration({
       apiKey: openAIToken
@@ -17,27 +22,68 @@ class OpenAI {
   }
 
   async getChatResponse(message:Message) {
-    const messages:ChatCompletionRequestMessage[] = (await getReplyChain(message)).map(message => {
-      return {
-        role: client.user?.id === message.author.id ? 'assistant' : 'user',
-        content: message.cleanContent.replace(/^\$[\w\-]+/, '')
-      }
-    }) 
+    await mongoClient.connect()
 
-    console.log(messages)
-    
+    const serverConfig = await ServerConfig.findById(message.guild?.id)
+
+    let modalName:string;
+
+    if( ! serverConfig?.modelName ) {
+      modalName = 'gpt-3.5-turbo'
+    }
+    else {
+      modalName = serverConfig.modelName
+    }
+
+    const messages = await getReplyChain(message)
+
+    // first try to send a message with the chat completions api
+    try {
+      const chatCompletionMessages:ChatCompletionRequestMessage[] = messages.map(message => {
+        return {
+          role: client.user?.id === message.author.id ? 'assistant' : 'user',
+          content: message.cleanContent.replace(/^\$[\w\-]+/, '')
+        }
+      })
+      return await this.generateChatCompletion(chatCompletionMessages, modalName)
+    }
+    // if that fails, send a message with the completion api
+    catch(err) {
+      const completionMessages = messages.map(message => {
+        return {
+          name: message.author.username,
+          content: message.cleanContent.replace(/^\$[\w\-]+/, '')
+        }
+      })
+      return await this.generateCompletion(completionMessages, modalName)
+    }
+  }    
+   
+  private async generateChatCompletion(messages:ChatCompletionRequestMessage[], modalName:string) {
     const chatCompletion = await this.api.createChatCompletion({
-      model: 'gpt-3.5-turbo',
+      model: modalName,
       messages: [
         { role: 'system', content: systemPrompt },
         ...messages
       ],
-      max_tokens: 250
+      max_tokens: 600
     })
 
-    const response = chatCompletion.data.choices[0].message
+    return chatCompletion.data.choices[0].message?.content
+  }
 
-    return response
+  private async generateCompletion(messages:{ name: string, content:string }[], modalName:string) {
+    const formattedMessages = ([...messages, { name: botUsername, content: '' }]).map(message => {
+      return `${message.name}: ${message.content}`
+    }).join('\n')
+
+    const completion = await this.api.createCompletion({
+      model: modalName,
+      prompt: formattedMessages,
+      max_tokens: 600,
+    })
+
+    return completion.data.choices[0].text
   }
 }
 

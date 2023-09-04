@@ -4,6 +4,15 @@ import { ServerConfig as ServerConfigRecord } from "../schema";
 import openai from "../utils/OpenAI";
 import { mongo } from "mongoose";
 
+const VALID_MODELS = [
+	'gpt-4',
+	'gpt-3.5-turbo',
+	'text-davinci-003',
+	'text-davinci-002',
+	'text-ada-001'
+]
+
+
 export default {
   data: new SlashCommandBuilder()
             .setName('change-model')
@@ -13,26 +22,17 @@ export default {
 						.setDescription('Change the Open AI model'),
 
     async execute(interaction:CommandInteraction) {
-			const currentModel = await ServerConfigRecord.findById( interaction.guildId )
-
 			const modelName = interaction.options.get('model')?.value as string
 
-			if( ! modelName ) {
-					return await interaction.reply({
-							content: "No model specified",
-							ephemeral: true
-					})
+			if( ! VALID_MODELS.includes( modelName ) ) {
+				return await interaction.reply({
+						content: "Invalid model specified",
+						ephemeral: true
+				})
 			}
 
-			try {
-					await openai.api.retrieveModel( modelName )
-			}
-			catch(err) {
-					return await interaction.reply({
-							content: "Invalid model specified",
-							ephemeral: true
-					})
-			}
+			await mongoClient.connect()
+			const currentModel = await ServerConfigRecord.findById( interaction.guildId )
 
 			if( currentModel ) {
 				currentModel.modelName = modelName
